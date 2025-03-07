@@ -1,0 +1,10 @@
+//DCJRXPP$ JOB SDBDC,'IBM-EHO',NOTIFY=&SYSUID,CLASS=A,                  JOB11707
+//         MSGLEVEL=(1,1),REGION=0M
+//LIB JCLLIB ORDER=(SDBDC.JCC.CNTL)
+//********************************************************************
+//V0       SET SMEM=DCJRXPP
+//V1       SET LMEM=DCJRXPP
+//********************************************************************
+//S010     EXEC JCCXCL,MEM=&SMEM,SDSN=SDBDC.CBTXXX.FILE1043.PDS <§
+//LINK.SYSLMOD DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.LOAD(&LMEM)   <§
+//*

@@ -1,0 +1,270 @@
+//DCHIRXE@ JOB SDBDC,'IBM-TEDB',NOTIFY=&SYSUID,CLASS=A,                 JOB11605
+//         MSGLEVEL=(1,1)
+//*+-----------------------------------------------------<BOD>+
+//*|SYS: SINM   LLQ: SOURCE                                   |
+//*|VER: 1.0       (C): SYSPRG1                               |
+//*|----------------------------------------------------------|
+//*|SYSPRG1   23/05/23     NEW                                |
+//*+-----------------------------------------------------<EOD>+
+//ASMACLG EXEC ASMACL
+//C.SYSIN DD *
+IRXEXECU CSECT
+IRXEXECU RMODE 31
+IRXEXECU AMODE 31
+         YREGS
+*--------------------------------------------------------------------*
+* Standard starting (housholding) sequence
+*--------------------------------------------------------------------*
+         SAVE  (14,12)
+         BASR  R11,0                 establish ...
+         USING *,11                 ...addressability
+         ST    R13,DCSAVE+4          chain...
+         LR    R12,R13                ...the...
+         LA    R13,DCSAVE               ...save...
+         ST    R13,8(12)                   ...areas
+*--------------------------------------------------------------------*
+MAIN#    DS    0H
+*
+         ST    R0,DCR0               explizit save    R0, R1
+         ST    R1,DCR1               explizit save    R0, R1
+*
+HELLOWT# DS    0H
+*        LA    R3,MSGLT
+*        WTO   TEXT=(3),ROUTCDE=11
+*
+         L     R3,DCR0
+         L     R1,DCR1
+         L     R4,20(R3)
+         LTR   R4,R4
+         BNZ   #NOINIT
+*
+*USERSTOR -----------------------------------------------------------*
+         L     R3,DCR0
+         L     R4,20(R3)
+         LA    R5,256
+         STORAGE OBTAIN,LENGTH=(5),ADDR=(6)
+         ST    R6,20(R3)
+         MVI   0(R6),X'00'
+         MVC   1(256-1,R6),0(R6)
+*STORAGE ------------------------------------------------------------*
+#STORAGE DS    0H
+*
+         L     R4,DCMAIN1L           for our own data
+         STORAGE OBTAIN,LENGTH=(4),ADDR=(3)
+         ST    R3,DCMAIN1A           for our own data
+         ST    R4,DCMAIN1L           for our own data
+         ST    R3,0(R6)
+         ST    R4,4(R6)
+*
+         L     R4,DCMAIN2L           for our own data
+         STORAGE OBTAIN,LENGTH=(4),ADDR=(3)
+         ST    R3,DCMAIN2A           for our own IRXINSTB
+         ST    R4,DCMAIN2L           for our own data
+         ST    R3,8(R6)
+         ST    R4,12(R6)
+*
+         MVC   HEXBIN,20(R3)
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+*        MVC   #WTO00+21(8),HEXDIS
+*WTO00   WTO   '=== STORINIT xxxxxxxx ===',ROUTCDE=11
+         B     #DONE
+*
+#NOINIT  DS    0H
+         MVC   HEXBIN,20(R3)
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+*        MVC   #WTO10+21(8),HEXDIS
+*WTO10   WTO   '=== STORKEEP xxxxxxxx ===',ROUTCDE=11
+*
+#DONE    DS    0H
+*CHECKPR ------------------------------------------------------------*
+#CHECKPR DS    0H
+*
+         L     R2,DCR1               A'PARMLIST IRXEXEC
+         L     R3,12(R2)             A''IRXINSTB
+         L     R3,0(R3)              A'IRXINSTB
+*
+         L     R4,16(R3)             get addr rowtab 230530 eho
+         L     R4,0(R4)
+         L     R6,20(R3)             get length row  230530 eho
+*
+         AR    R6,R4                 high address
+#L000A   DS    0H
+         CLC   0(10,R4),=C'PREPROCESS'
+         BE    #L000B                found -> preprocess  ->
+         LA    R4,1(0,R4)            incr
+         CR    R4,R6                 compare high
+         BNH   #L000A                try again
+         B     #EXIT                 Not Found             v
+#L000B   DS    0H
+         B     #ORIGB                Found              ---!
+*
+*ORIGB   ------------------------------------------------------------*
+#ORIGB   DS    0H
+*
+         L     R2,DCR1               A'PARMLIST IRXEXEC
+         L     R3,12(R2)             A''IRXINSTB
+         L     R3,0(R3)              A'IRXINSTB
+         L     R4,20(R3)             R4: high count line tab = L'dyn
+         LA    R5,128                L'IRXINSTB header
+         AR    R5,R4                 R5: L'IRXINSTB sum
+         ST    R3,DCMAIN3A           R3: A'IRXINSTB
+         ST    R5,DCMAIN3L           R5: L'IRXINSTB sum
+*
+*
+*        L     R2,DCR0
+*        L     R4,20(R2)
+*        ST    R3,16(R4)
+*        ST    R5,24(R4)
+*
+*-PREPARE IRXINSTB --------------------------------------------------*
+#BIGINSB DS    0H
+*
+         L     R2,DCR1               A'PARMLIST IRXEXEC
+         L     R3,12(R2)             A''IRXINSTB
+         L     R3,0(R3)              A'IRXINSTB
+         L     R5,20(R3)             R4: high count line tab = L'dyn
+*                                    ********************************
+         LR    R4,R3                 A'IRXINSTB
+         LA    R4,128(R4)            A'IRXINSTB
+         LR    R5,R5                 R5: L'IRXINSTB sum
+         L     R6,DCMAIN2A           R6: A'DCMAIN2
+         LR    R7,R5                 R7: L'IRXINSTB sum
+         MVCL  R6,R4                 MVCL R6 -> R4
+*-IRXPREP -----------------------------------------------------------*
+#CALLPRE DS    0H
+*                                    use IKJEFTSR to invoke IRXPREP
+         L     R3,DCMAIN1A
+         ST    R3,HEXBIN
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+         MVC   CMDBUF+9(8),HEXDIS
+*
+         MVC   HEXBIN,DCMAIN1L
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+         MVC   CMDBUF+18(8),HEXDIS
+*
+         L     R3,DCMAIN2A
+         ST    R3,HEXBIN
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+         MVC   CMDBUF+27(8),HEXDIS
+*
+         MVC   HEXBIN,DCMAIN2L
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+         MVC   CMDBUF+36(8),HEXDIS
+*
+         L     R3,DCMAIN3A
+         ST    R3,HEXBIN
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+         MVC   CMDBUF+45(8),HEXDIS
+*
+         MVC   HEXBIN,DCMAIN3L
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+         MVC   CMDBUF+54(8),HEXDIS
+*
+#L010A   DS    0H
+         L     R15,CVTPTR              ESTABLISH
+         L     R15,CVTTVT(,R15)        ADDRESSABILITY TO THE
+         L     R15,TSVTASF-TSVT(,R15)  TSO SERVICE FACILITY
+         CALL  (15),(FLAGS,CMDBUF,BUFLEN,RETCODE,RSNCODE,ABNDCODE),VL
+         L     R4,RETCODE
+         ST    R4,DCRETC
+         LTR   R4,R4
+         BZ    #OK00
+         WTO   'ERROR PREPROCESS.',ROUTCDE=11
+#OK00    DS    0H
+         B     #EXIT                 << comment out for test
+*-SAMPLE MODIFY IRXINSTB INLINE -------------------------------------*
+#MODINSB DS    0H
+*                                    use IKJEFTSR to invoke IRXPREP
+         L     R2,DCR1               A'PARMLIST IRXEXEC
+         L     R3,12(R2)             A''IRXINSTB
+         L     R3,0(R3)              A'IRXINSTB
+         L     R4,20(R3)             high count line tab
+         L     R3,16(R3)             A''first entry
+         L     R3,0(R3)              A'first entry
+         MVC   0(20,R3),=C'/* REXX PREPARED. */' change first line
+*
+         L     R2,DCR1               A'PARMLIST IRXEXEC
+         L     R2,12(R2)             A''IRXINSTB
+         L     R2,0(R2)              A'IRXINSTB
+         L     R4,20(R2)
+         L     R3,16(R2)
+*
+         LR    R6,R3                 goto tabend
+         AR    R6,R4
+         L     R5,DCMAIN1A           load our getmained
+         MVC   0(20,R5),=C'/* A NEW LINE     */'
+         ST    R5,0(R6)              store addr
+         LA    R5,20                 store len
+         ST    R5,4(R6)              !
+         LA    R5,8                  increment high
+         AR    R5,R4                 !
+         ST    R5,20(R2)             store new high
+*--------------------------------------------------------------------*
+* Standard exiting sequence, pass on REXX retcode
+*--------------------------------------------------------------------*
+#EXIT    DS    0H
+*
+         L     R0,DCR0                explizit restore R0, R1
+         L     R1,DCR1
+         L     R13,DCSAVE+4
+         L     R15,DCRETC
+         RETURN (14,12),RC=(15)
+*--------------------------------------------------------------------*
+* Data areas
+*--------------------------------------------------------------------*
+DCRETC   DC    F'0'                 RETURNCODE
+DCSAVE   DC    18F'0'               SAVE AREA
+DCR0     DC    F'0'
+DCR1     DC    F'0'
+*
+DCMAIN1A DS    A
+DCMAIN2A DS    A
+DCMAIN3A DS    A
+DCMAIN1L DC    XL4'00040000'       256k contents 3276 rows
+DCMAIN2L DC    XL4'00007000'        28k irxinstb 128b + 3568 rows
+DCMAIN3L DS    F
+*
+MSGLT    DC    AL2(L'MSGT)
+MSGT     DC    CL20'===  IN IRXEXECU  ==='
+*
+         DS    0F
+HEXTRT   EQU   *-X'F0'             16 Byte Translate Table.
+*                   0 1 2 3 4 5 6 7 8 9 A B C D E F
+         DC    XL16'F0F1F2F3F4F5F6F7F8F9C1C2C3C4C5C6'  F0 - FF
+HEXBIN   DS    XL4                 4 Byte Binary Field.
+         DS    X                   1 Byte Pad for UNPK.
+HEXDIS   DS    CL8                 8 Byte Displayable Hex Field.
+         DS    C                   1 Byte Pad for UNPK.
+*
+         LTORG
+CVTPTR   EQU   16
+CVTTVT   EQU   X'9C'
+*
+CMDBUF   DC    C'DCJRXPP  '
+CMDBUF1  DC    C'addr1___ addr1l__ '
+CMDBUF2  DC    C'addr2___ addr2l__ '
+CMDBUF3  DC    C'addr3___ addr3l__ '
+BUFLEN   DC    F'63'       LENGTH OF COMMAND BUFFER
+RETCODE  DS    F           RETURN CODE FROM COMMAND
+RSNCODE  DS    F           REASON CODE
+ABNDCODE DS    F           ABEND CODE
+ZERO     DC    F'0'        ZERO CONSTANT
+FLAGS    DS    0F          MAPS FIRST PARM TO IKJEFTSR
+RESFLAGS DC    H'0'        FLAG WORD
+ABFLAGS  DC    X'01'       DUMP IF ABEND OCCURS
+FNCFLAGS DC    X'01'       TELL TSR TO EXECUTE THE COMMAND
+*
+         LTORG
+         PRINT NOGEN
+         IKJTSVT
+*
+         END
+//L.SYSLMOD DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.LOAD(IRXEXECU)

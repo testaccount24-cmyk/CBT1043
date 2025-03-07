@@ -1,0 +1,21 @@
+//TESTRXU$ JOB SDBDC,'IBM-EHO',NOTIFY=&SYSUID,CLASS=A,                   JOB1320
+//         MSGLEVEL=(1,1)
+//*+-----------------------------------------------------<BOD>+
+//*|SYS: SINM   LLQ: CNTL                                     |
+//*|VER: 1.0       (C): SYSPRG1                               |
+//*|----------------------------------------------------------|
+//*|DESC: TEST IRXPREP IN BATCH                               |
+//*|----------------------------------------------------------|
+//*|SYSPRG1   23/05/19     NEW                                |
+//*+-----------------------------------------------------<EOD>+
+//S001     EXEC PGM=IKJEFT01,REGION=0M
+//STEPLIB  DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.LOAD
+//RXSYSLIB DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.PDS << OPTIONAL
+//SYSEXEC  DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.PDS
+//SYSPRINT DD SYSOUT=*
+//SYSTSPRT DD SYSOUT=*
+//STDERR   DD SYSOUT=*
+//STDOUT   DD SYSOUT=*
+//*YSABEND DD SYSOUT=*
+//SYSTSIN  DD *
+  RXUTEST

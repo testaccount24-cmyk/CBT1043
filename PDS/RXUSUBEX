@@ -1,0 +1,4 @@
+/* rexx */
+   parse upper arg parm
+   say parm
+return 5

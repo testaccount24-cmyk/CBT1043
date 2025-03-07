@@ -1,0 +1,10 @@
+/* rexx -- needs MXI installed */
+trace o
+rc = mxirexx("mm.","NOTITLES","DA "userid()"")
+
+do i = 1 to mm.0
+  if wordpos("Region",mm.i) > 0 &,
+     wordpos("Used"  ,mm.i) > 0 then say mm.i
+end
+
+return 0

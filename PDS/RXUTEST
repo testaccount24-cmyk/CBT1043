@@ -1,0 +1,26 @@
+/* rexx   PREPROCESS */
+trace i
+  parse upper arg parm .
+
+  #SYSLIB     RXUSLIB        ;
+
+  parse source a ; say a;
+/*do i = 1 to sourceline(); say "(SL "i")"sourceline(i); end */
+
+  rc = DCLecho("XXX XXXX")
+
+  address tso "TIME"
+  address tso RXUSUBEX "III: NOW FROM COMMAND"
+
+  call  RXUSUBEX "III: SAY FROM EXTERNAL SUB"
+  say result
+  address tso "TIME"
+
+  rc =  RXUSUBEX("III: SAY FROM EXTERNAL FUN")
+
+  /*  pc = RXUMAYFN(var1,var2) */
+
+  #MACRO RXUMAC00 ; RXUMAYFO; "arg one" ; "arg two" ;
+
+
+return
