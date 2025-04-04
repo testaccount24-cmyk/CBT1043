@@ -1,0 +1,456 @@
+/*+--------------------------------------------------------------------<bod>+*/
+/*!sys: SINM      llq: SOURCE                                               !*/
+/*!ver: 0.1       (c): SYSPRG1                                              !*/
+/*!-------------------------------------------------------------------------!*/
+/*!desc: REXX Preprozessor                                                  !*/
+/*!-------------------------------------------------------------------------!*/
+/*!tgt:                                                                     !*/
+/*!dep: IRXTSPRM                                                            !*/
+/*!dep: IRXEXECU                                                            !*/
+/*!dep: IRXTERMU                                                            !*/
+/*!dep:                                                                     !*/
+/*!arg: data dlen rtav rlen oinstb olen       (ebcdic text)                 !*/
+/*!syn:                                                                     !*/
+/*!run: TSO                                                                 !*/
+/*!-------------------------------------------------------------------------!*/
+/*! eho     23/05/29     build 230529a                                      !*/
+/*+--------------------------------------------------------------------<eod>+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+char *procname;
+#define BLEN 512
+
+struct BLOCKS {
+  void * da;
+  long   dl;
+  void * ia;
+  long   il;
+  void * oa;
+  long   ol;
+} ;
+
+struct ADRLEN  {void * addr; long len;};   // A'row L'row
+struct COUNTER {long lc,lx,bc,bx;};        // l: line b: byte c: count x: high
+struct SYSLIB  {char memÝ9¨;} syslibÝ16¨;  int syslibx = 0;
+
+void *pp1;
+void *pp2d; void *pp2i; void *pp2o;
+/*****************************************************************************/
+/* L O C A L                                                                 */
+/**0010***********************************************************************/
+/* sysprint()                                                                */
+/* - write out a message DD STDERR                                           */
+/*---------------------------------------------------------------------------*/
+void sysprint(char *msg, ...) {
+
+  char tbufÝ256¨ = "";
+  int  tl;
+  char *p;
+
+    va_list args;
+    va_start (args, msg);
+
+    sprintf(tbuf,"%-8.8s: ",procname);
+    vsnprintf(tbuf+10,255-10,msg,args);
+    tl = strlen(tbuf);
+    tbufÝtl¨ = '\n';
+    fprintf(stderr,tbuf);
+
+    va_end (args);
+
+  return;
+}
+/**0020***********************************************************************/
+/* xxstrip()                                                                 */
+/*   strip leading & trailing                                                */
+/*****************************************************************************/
+ int  xxstrip(char *buf, char *quote) {
+
+  int i,j,k,l;
+
+  l = strlen(buf); if (l == 0) return l;
+
+  for (i=l-1;i>=0;i--) {
+    if (bufÝi¨ == quoteÝ0¨) bufÝi¨ = 0x0;
+    else break;
+  }
+
+  l = strlen(buf); if (l == 0) return l;
+
+  j = 0;
+  for (i=0;i<l;i++) {
+    if (bufÝi¨ == quoteÝ0¨ && j == 0) continue;
+    bufÝj¨ = bufÝi¨; j++;
+  }
+  bufÝj¨ = 0x0;
+
+  return strlen(buf);
+}
+/**00200**********************************************************************/
+/* ppexpand()                                                                */
+/* - write expanded source to STDOUT DD                                      */
+/*---------------------------------------------------------------------------*/
+int  ppexpand() {
+
+  long i,j,k,rc=0;
+  char bufÝBLEN¨;
+  struct BLOCKS  *bk;
+  struct COUNTER *ci;
+  struct ADRLEN  *pi;
+  /*-------------------------------------------------------------------------*/
+  bk = pp1;
+  ci = pp2i;
+
+  pi = (struct ADRLEN *)(char *)bk->ia;
+
+  sysprint("II: Lines Output: %d Bytes Rowtab: %d",ci->bx/8,ci->bx);
+
+  for (i=0;i<ci->bx/8;i++) {
+//  sysprint("II: %x %x",pi->addr,pi->len);
+    strncpy(buf,(char*)(pi->addr),pi->len); bufÝpi->len¨ = 0x0;
+    fprintf(stdout,"%s\n",buf);
+    pi++;
+  }
+
+  return 0;
+}
+/**00210**********************************************************************/
+/* ppwrite()                                                                 */
+/* - generalized write                                                       */
+/*   -- data                                                                 */
+/*   -- rowtab                                                               */
+/*   -- instblk high                                                         */
+/*---------------------------------------------------------------------------*/
+int  ppwrite(char *buf, int len) {
+
+  long i,j,k,rc=0;
+  struct BLOCKS  *bk;
+  struct COUNTER *cd;
+  struct COUNTER *ci;
+  struct COUNTER *co;
+  char           *pd;
+  struct ADRLEN  *pi;
+  struct ADRLEN  *po;
+
+  char           *piv;
+  struct ADRXLEN {long ll; long l2; long bl;}  *pdv;  // DATA heaader
+  /*-------------------------------------------------------------------------*/
+  bk = pp1;
+  cd = pp2d;
+  ci = pp2i;
+  co = pp2o;
+//   #include "DCJRXP0"
+                                        //* DATA ***************
+  piv= (char *)bk->ia;
+  pd = (char *)bk->da+cd->bx+12;           // A'data high
+  pdv= (struct ADRXLEN *)((char *)bk->da);
+  memcpy(pd,buf,len);
+
+  cd->lc = cd->lc+1;                    // lines high
+  cd->bc = cd->bc+len;                   // bytes high
+  cd->bx = cd->bx +len;                 // bytes high
+
+                                        //* ROWTAB *************
+  pi = (struct ADRLEN *)((char *)bk->ia+ci->bx);
+  pi->len  = len;
+  pi->addr = pd;
+  ci->lc   = ci->lc +1;                 // rowtab++
+  ci->bc   = 8;                         // l'
+  ci->bx   = ci->bx+8;                  // high
+
+  po = (struct ADRLEN *)((char *)bk->oa + 16);    // A' new rowtab final
+  po->addr = piv;
+  po->len  = ci->bx;
+//   #include "DCJRXP0"
+
+//sysprint("PO post %08x %08x",po->addr,po->len);
+  pdv->ll = cd->lc;
+  pdv->bl = cd->bc;
+
+  return (rc);
+}
+/**00220**********************************************************************/
+/* pphline()                                                                 */
+/* - write comment lines adjusted to lrecl                                   */
+/*---------------------------------------------------------------------------*/
+int  pphline(char *buf,char fill,int len,char *text) {
+
+  int i;
+
+//sysprint("<%s>",text);
+  for (i=0;i<len;i++) bufÝi¨ = fill;
+  bufÝ0¨ = '/';
+  bufÝ1¨ = '*';
+  if (strlen(text)) memcpy(buf+2,text,strlen(text));
+  bufÝlen-2¨ = '*';
+  bufÝlen-1¨ = '/';
+
+  return 0;
+}
+/**00221**********************************************************************/
+/* ppsymbols()                                                               */
+/* - substitute positional values                                            */
+/*---------------------------------------------------------------------------*/
+int  ppsymbols(char *buf,char *parms,int len)  {
+
+  char lbufÝBLEN¨;
+  char rbufÝBLEN¨;
+  char rbu2ÝBLEN¨;
+  char pstrÝ10¨;
+  int i,j,k,m,n;
+  int  ip = NULL;
+  int  ptÝ16¨;
+  char *p;
+  char *q;
+  /*-------------------------------------------------------------------------*/
+  if (parmsÝ0¨ == 0x0) return 0;
+
+//sysprint("<%s><%d>",parms,strlen(parms));
+  memcpy(lbuf,parms,len); lbufÝlen¨ = 0x0;
+
+  i = 0;
+  ip = strtok(lbuf, ";");
+  while(ip != NULL) {
+    ptÝi¨ = ip;
+    ip = strtok(NULL, ";");
+    i++;
+  }
+
+  memcpy(rbuf,buf,len); rbufÝlen¨ = 0x0;
+  for (j=0;j<i;j++) {
+    xxstrip((char *)ptÝj¨," ");
+//  sysprint(">>%s<<",(char *)ptÝj¨);
+    sprintf(pstr,"&P%d",j);
+    while (p = (char *)strstr(rbuf,pstr)) {
+      m = strlen((char *)ptÝj¨) +0;
+      n = strlen(pstr);
+
+      memcpy(rbu2,p+n,len);
+      memcpy(p,(char *)ptÝj¨,m);
+      memcpy(p+m,rbu2,len);
+      rbufÝlen¨ = 0x0;
+    }
+  }
+  memcpy(buf,rbuf,len); rbufÝlen¨ = 0x0;
+
+  return 0;
+}
+/**00230**********************************************************************/
+/* ppgetmem()                                                                */
+/* - get include member                                                      */
+/*   -- RXSYSLIB DD first                                                    */
+/*   -- SYSEXEC  DD                                                          */
+/*---------------------------------------------------------------------------*/
+int  ppgetmem(char *mem,char *key,char *parms) {
+
+  int i,j,k,rc=0,prc;
+  void *p;
+  unsigned short *is;
+  char bufÝ512¨;
+  char buf2Ý512¨;
+  FILE *fi;
+
+  unsigned char dsorg;
+  unsigned char recfm;
+  unsigned short lrecl;
+  unsigned short blksz;
+  /*-------------------------------------------------------------------------*/
+  sprintf(buf,"//DDN:RXSYSLIB(%s)",mem);
+  fi = fopen(buf,"rb");
+  if (!fi) {
+    sprintf(buf,"//DDN:SYSEXEC(%s)",mem);
+    fi = fopen(buf,"rb");
+  }
+  if (!fi) {sysprint("EE: Open Error %s.",mem); return 12;}
+
+   __getdcb(fileno(fi), &(dsorg), &(recfm), NULL, &(lrecl), &(blksz)  );
+
+  // sysprint("DSORG: 0x%02.2X RECFM: 0x%02.2X LRECL: %d BLKSIZE %d",
+  //         dsorg,recfm,lrecl,blksz);
+
+  if (recfm != 0x90 & recfm != 0x80) {
+    sysprint("EE: Member %s recfm not FB.",mem); return 12;}
+
+
+  if (!strcmp(key,"#SYSLIB"))
+      sprintf(buf2," SYSLIB include %s",mem);
+  else
+      sprintf(buf2," MACRO  include %s",mem);
+
+  pphline(buf,'*',lrecl,0x0); ppwrite(buf,lrecl);
+  pphline(buf,' ',lrecl,buf2); ppwrite(buf,lrecl);
+  pphline(buf,'*',lrecl,0x0); ppwrite(buf,lrecl);
+
+  while (fread (&buf,1,lrecl,fi)) {
+    ppsymbols(buf,parms,lrecl);
+    ppwrite(buf,lrecl);
+  }
+  pphline(buf,'*',lrecl," EO SYSLIB/INCLUDE "); ppwrite(buf,lrecl);
+
+  if (fi) fclose(fi);
+  return 0;
+}
+/**00240**********************************************************************/
+/* ppdirect()                                                                */
+/* - wor with directives                                                     */
+/*   SPECIAL NOTE:  JCC strtok is int !!!                                    */
+/*---------------------------------------------------------------------------*/
+int  ppdirect(char *buf,int len) {
+  int i,ix,j,rc = 0 ;
+  char lbufÝ255¨;
+  char parmsÝ255¨;
+  char memÝ9¨ ;
+  char keyÝ9¨ ;
+  int  ip = NULL;
+  int  ptÝ16¨;
+  char *p;
+  char *ps = NULL;
+
+  memcpy(lbuf,buf,len);
+  lbufÝlen¨ = 0x0;               // clean dirty main
+   bufÝlen¨ = 0x0;               // clean dirty main
+   parmsÝ0¨ = 0x0;               // clean dirty main
+
+  i = 0; j = 0; memÝ0¨ = 0x0; keyÝ0¨ = 0x0;
+
+  ip = strtok(lbuf, " ;");
+  while(ip != NULL) {
+    ptÝi¨ = ip;
+    if (i == 0) {strncpy(key,ip,8); keyÝ8¨ = 0x0; }
+    if (i == 1) {strncpy(mem,ip,8); memÝ8¨ = 0x0; }
+
+    ip = strtok(NULL, " ;");
+    i++;
+  }
+  for (j=0;j<strlen(key);j++) keyÝj¨ = toupper(keyÝj¨);       // upper key
+  memÝ8¨ = 0x0;                                               // upper key
+
+  parmsÝ0¨ = 0x0;
+  p = (char *)(ptÝ0¨);
+  ps = (char *)strchr(buf,';') ;
+  if (ps) strncpy(parms,ps+1,len);
+//sysprint(">2 <%s><%x>",parms,ps);
+  //------------------------------------- #MACRO
+  if (!strcmp(key,"#MACRO")) {
+
+    if (!strlen(mem)) {                    // SYSLIB w/o name
+      sysprint("EE: #MACRO w/o membername.");
+      return 1;
+    }
+
+    pphline(lbuf,' ',len,buf);
+    memcpy(buf,lbuf,len);
+    ppwrite(buf,len);
+
+//  if (parmsÝ0¨)  ppwrite(parms,strlen(parms));
+
+    ppgetmem(mem,key,parms);
+//  j = strlen(parms);
+//  sysprint(">>>>>>>>>>>%d",j);
+//  ppgetmem(mem,key,parms);
+    return 2;                             // RC2: nowrite source main
+  }
+  //------------------------------------- #SYSLIB
+  if (!strcmp(key,"#SYSLIB")) {
+
+    if (!strlen(mem)) {                    // SYSLIB w/o name
+      sysprint("EE: #SYSLIB w/o membername.");
+      return 1;
+    }
+    strncpy(syslibÝsyslibx¨.mem,mem,8);
+    syslibx++;
+
+    pphline(lbuf,' ',len,buf);
+    memcpy(buf,lbuf,len);
+  }
+
+  return 0;
+}
+/**00110**********************************************************************/
+/* getparms()                                                                */
+/*---------------------------------------------------------------------------*/
+void getparms(int argc, char ** argv,struct BLOCKS *bk) {
+
+  long i,j,k,rc = 0;
+
+  j   = strtol (argvÝ1¨,NULL,16); bk->da = (char *)j;
+  j   = strtol (argvÝ2¨,NULL,16); bk->dl =         j;
+  j   = strtol (argvÝ3¨,NULL,16); bk->ia = (char *)j;
+  j   = strtol (argvÝ4¨,NULL,16); bk->il =         j;
+  j   = strtol (argvÝ5¨,NULL,16); bk->oa = (char *)j;
+  j   = strtol (argvÝ6¨,NULL,16); bk->ol =         j;
+  sysprint("II: Rows      NEW: %8.8x %7d",bk->da,bk->dl);
+  sysprint("II: RowTab    NEW: %8.8x %7d",bk->ia,bk->il);
+  sysprint("II: INSTB     OLD: %8.8x %7d",bk->oa,bk->ol);
+
+  return;
+}
+/*****************************************************************************/
+/* M A I N                                                                   */
+/*   - structs first                                                         */
+/*****************************************************************************/
+int  main(int argc, char ** argv) {
+
+  long i,j,k,prc=0,rc=0;
+  long irows;
+  char *p,*q;
+  char bufÝ255¨;
+  char buf2Ý255¨;
+
+  struct BLOCKS bk;
+  struct ADRLEN  *po;
+  char           *pd;
+  struct ADRLEN  *pi;
+  struct COUNTER  co;
+  struct COUNTER  cd;
+  struct COUNTER  ci;
+  /*-------------------------------------------------------------------------*/
+  procname = argvÝ0¨;
+                                                // propagate all pointers
+                                                // global
+  pp1 = &bk;
+  pp2d= &cd; pp2i= &ci; pp2o= &co;
+
+  cd.lc = cd.lx = cd.bc = cd.bx = 0;
+  ci.lc = ci.lx = ci.bc = ci.bx = 0;
+  co.lc = co.lx = co.bc = co.bx = 0;
+
+  getparms(argc,argv,&bk);
+  /*-------------------------------------------------------------------------*/
+                                                 // loop around old INSTB
+  po = (struct ADRLEN *)((char *)bk.oa + 16);    // A' new rowtab
+  co.lx = po->len /8;
+
+  for (irows=0;irows<co.lx;irows++) {
+    po = (struct ADRLEN *)((char *)bk.oa + 128 +irows*8);
+    co.bc = po->len;
+    memcpy(buf,po->addr,co.bc); bufÝco.bc¨ = 0x0;
+    co.lc = irows+1;
+    co.bx = co.bx +8;
+
+    if (co.lc==1) {                              // First Line
+      if (i=strstr(buf,"PREPROCESS")) {
+        p = NULL; p = p+i;                       // JCC int vs char*
+        memcpy(p,"XXXXXXXXXX",10);
+      }
+    }
+                                                 // # directives SYSLIB MACRO
+    prc = 0;
+    if (memchr(buf,'#',co.bc)) prc = ppdirect(buf,co.bc);
+    if (prc != 2) ppwrite(buf,co.bc);
+
+  }
+  /*-------------------------------------------------------------------------*/
+  for (i=0;i<syslibx;i++) {
+    sysprint ("II: SYSLIB append %s",syslibÝi¨.mem);
+    prc = ppgetmem(syslibÝi¨.mem,"#SYSLIB",NULL);
+  }
+  /*-------------------------------------------------------------------------*/
+  EE:
+
+  ppexpand();
+
+return  0;
+}
+/* eoc ***********************************************************************/

@@ -1,0 +1,80 @@
+//JCCPCL   PROC MEM=DUMMY1,SDSN=DUMMY2,
+//         PARMJCC0='-o -fcode=',
+//         PARMJCC1='//DDN:JCCINPUT -I//DDN:JCCINCL',
+//         PARMPRE='-s //DDN:L //DDN:O //DDN:I',
+//         PARMLIN='MAP,LIST,XREF,NORENT,AC(1)',
+//         JCCINC=SDBDC.JCC.INCLUDE,
+//         JCCLIB=SDBDC.JCC.LIB                 <§
+//*+-----------------------------------------------------<BOD>+
+//*|SYS: SINM   LLQ: CNTL                                     |
+//*|VER: 1.0       (C): SYSPRG1                               |
+//*|----------------------------------------------------------|
+//*|DESC: JCC 037 NOTRI - COMPILE - LINK                      |
+//*|----------------------------------------------------------|
+//*|DEP: DCXJASM  EXEC SDBDC.MOD.EXEC                         |
+//*|----------------------------------------------------------|
+//*|SYSPRG1   09/09/25     NEW                                |
+//*+-----------------------------------------------------<EOD>+
+//*------------------------------------------------------------
+//** PRINT SOURCE
+//*------------------------------------------------------------
+//PRINT    EXEC  PGM=IEBGENER,REGION=8M
+//SYSPRINT DD DUMMY
+//SYSUT1   DD DISP=SHR,DSN=&SDSN(&MEM)
+//SYSUT2   DD SYSOUT=*
+//SYSIN    DD DUMMY
+//*------------------------------------------------------------
+//** JCC COMPILE
+//*------------------------------------------------------------
+//JCCC     EXEC PGM=JCC,
+//         PARM='&PARMJCC0&MEM &PARMJCC1 -D__ZZPROC="&MEM"'
+//STEPLIB  DD   DISP=SHR,DSN=SDBDC.JCC.LOAD
+//JCCINCL  DD   DISP=SHR,DSN=&JCCINC
+//JCCINCS  DD   DISP=SHR,DSN=&SDSN
+//JCCINPUT DD   DISP=SHR,DSN=&SDSN(&MEM)
+//JCCOASM  DD DISP=(,PASS),DSN=&&TEMP2,               **  80 FB
+//            UNIT=VIO,SPACE=(TRK,(60,60)),           ** OBJECT
+//            DCB=(LRECL=80,BLKSIZE=3120,RECFM=FB)
+//JCCOUTPT DD   SYSOUT=*
+//STDOUT   DD   SYSOUT=*
+//*------------------------------------------------------------
+//** JCC INLINE ASM
+//*------------------------------------------------------------
+//IF00A    IF JCCC.RC < 1 THEN
+//JCCIASM  EXEC PGM=IKJEFT01,DYNAMNBR=50,
+//         PARM='DCXJASM &SDSN SDBDC.JCC.USERMAC'
+//SYSEXEC  DD DISP=SHR,DSN=SDBDC.MOD.EXEC
+//SYSPRINT DD SYSOUT=*
+//SYSTSPRT DD SYSOUT=*
+//DDS      DD DISP=SHR,DSN=&SDSN(&MEM)
+//SYSLIN   DD DISP=(,PASS),DSN=&&TEMP4,               **  80 FB
+//            UNIT=VIO,SPACE=(TRK,(60,60)),           ** OBJECT
+//            DCB=(LRECL=80,BLKSIZE=3120,RECFM=FB)
+//SYSTSIN  DD DUMMY
+//EF00A    ENDIF
+//*------------------------------------------------------------
+//** JCC PRELINK
+//*------------------------------------------------------------
+//IF00P    IF JCCC.RC < 1 THEN
+//JCCP     EXEC PGM=PRELINK,PARM='&PARMPRE'
+//STEPLIB  DD DISP=SHR,DSN=SDBDC.JCC.LOAD
+//STDOUT   DD SYSOUT=*
+//L        DD DISP=SHR,DSN=&JCCLIB
+//I        DD DISP=(OLD,DELETE),DSN=&&TEMP2
+//O        DD DISP=(,PASS),DSN=&&TEMP3,               **  80 FB
+//            UNIT=VIO,SPACE=(TRK,(60,60)),           ** OBJECT
+//            DCB=(LRECL=80,BLKSIZE=3120,RECFM=FB)
+//EF00P    ENDIF
+//*------------------------------------------------------------
+//** MVS LINK
+//*------------------------------------------------------------
+//IF00L    IF JCCP.RC < 8 THEN
+//LINK   EXEC PGM=IEWL,PARM='&PARMLIN'
+//SYSPRINT DD SYSOUT=*
+//SYSLIB   DD DISP=SHR,DSN=&JCCLIB
+//SYSLMOD  DD DISP=SHR,DSN=SDBDC.JCC.LOAD(&MEM)
+//SYSLIN   DD DISP=(OLD,DELETE),DSN=&&TEMP3
+//         DD DISP=(OLD,DELETE),DSN=&&TEMP4
+//SYSUT1   DD UNIT=VIO,SPACE=(TRK,(60,60))
+//EF00L    ENDIF
+//         PEND

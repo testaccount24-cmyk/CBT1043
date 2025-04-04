@@ -1,0 +1,401 @@
+//DCHIRXP@ JOB ,NOTIFY=&SYSUID,CLASS=A,MSGLEVEL=(1,1)
+//*+-----------------------------------------------------<BOD>+
+//*|SYS: ZGB       LLQ: SOURCE                                |
+//*|VER: 1.0       (C): SYSPRG1                               |
+//*|----------------------------------------------------------|
+//*|DESC: MAPPING                                             |
+//*|----------------------------------------------------------|
+//*|SYSPRG1 02/10/11     NEW                                  |
+//*+-----------------------------------------------------<EOD>+
+//DCHIRXP@ EXEC PGM=ASMA90,PARM='OBJECT,NODECK,XREF(SHORT)'
+//SYSLIB   DD DISP=SHR,DSN=SYS1.MACLIB                          <§
+//         DD DISP=SHR,DSN=SYS1.MODGEN                         <§
+//SYSUT1   DD UNIT=SYSDA,SPACE=(CYL,(10,5))
+//SYSPRINT DD SYSOUT=*
+//SYSLIN   DD DISP=(,PASS),DSN=&LOADSET,UNIT=VIO
+IRXTSPRM CSECT ,
+IRXTSPRM AMODE 31
+IRXTSPRM RMODE ANY
+ TITLE 'TSO/E REXX TSO Environment Parameter Module Example'
+* /***START OF SPECIFICATIONS*****************************************/
+* /*                                                                 */
+* /*01*  MODULE-NAME = IRXTSPRM                                      */
+* /*                                                                 */
+* /*01*  DESCRIPTIVE-NAME = TSO REXX Parameter Module                */
+* /*                                                                 */
+* *01* PROPRIETARY STATEMENT=                                         *
+* ***PROPRIETARY_STATEMENT*********************************************
+*                                                                     *
+*   LICENSED MATERIALS - PROPERTY OF IBM                              *
+*   5694-A01 COPYRIGHT IBM CORP. 1988, 2009                           *
+*                                                                     *
+*   STATUS= HTE7760                                                   *
+*                                                                     *
+* ***END_OF_PROPRIETARY_STATEMENT**************************************
+* /*                                                                 */
+* /*01*  FUNCTION = Initializaton parameters for REXX running under  */
+* /*                TSO                                              */
+* /*                                                                 */
+* /*01*  OPERATION = Declare the system default PARMBLOCK, MODNAMET, */
+* /*                 SUBCOMTB, and PACKTB.                           */
+* /*                                                                 */
+* /*02*    RECOVERY OPERATION = not applicable                       */
+* /*                                                                 */
+* /*01*  NOTES = This module does not contain any executable code,   */
+* /*             only data.                                          */
+* /*                                                                 */
+* /*02*    DEPENDENCIES = not applicable                             */
+* /*                                                                 */
+* /*02*    RESTRICTIONS = None                                       */
+* /*                                                                 */
+* /*02*    CHARACTER-CODE-DEPENDENCIES = EBCDIC                      */
+* /*                                                                 */
+* /*                                                                 */
+* /*01*  MODULE-TYPE = Procedure                                     */
+* /*                                                                 */
+* /*02*   ATTRIBUTES = Reentrant, Reusable,                          */
+* /*                   Key 8, AMODE(31), RMODE(ANY)                  */
+* /*                                                                 */
+* /*01*  ENTRY-POINT = IRXTSPRM                                      */
+* /*                                                                 */
+* /*02*    PURPOSE = See Function                                    */
+* /*                                                                 */
+* /*02*    LINKAGE = Called by IKJEFTSR                              */
+* /*                                                                 */
+* /*03*    CALLERS = IKJEFTSR                                        */
+* /*                                                                 */
+* /*03*    ENTRY REGISTERS = not applicable                          */
+* /*                                                                 */
+* /*01*  INPUT = none                                                */
+* /*                                                                 */
+* /*01*  OUTPUT = none                                               */
+* /*                                                                 */
+* /*02*    EXIT-NORMAL = not applicable                              */
+* /*                                                                 */
+* /*03*    RETURN-CODES =  none                                      */
+* /*                                                                 */
+* /*02*    EXIT-ERROR = none                                         */
+* /*                                                                 */
+* /*03*    RETURN-CODES = none                                       */
+* /*                                                                 */
+* /*03*    EXIT-REGISTERS = not applicable                           */
+* /*                                                                 */
+* /*02*    EXTERNAL-REFERENCES =                                     */
+* /*                                                                 */
+* /*03*      ROUTINES = none                                         */
+* /*                                                                 */
+* /*03*      DATA-AREAS = none                                       */
+* /*                                                                 */
+* /*03*      CONTROL-BLOCKS = PARMBLOCK                              */
+* /*                                                                 */
+* /*02*    TABLES =           SUBCOMTB                               */
+* /*                          PACKTB                                 */
+* /*                          MODNAMET                               */
+* /*                                                                 */
+* /*02*    MACROS-EXECUTABLE = none                                  */
+* /*                                                                 */
+* /*02*    SERIALIZATION = none                                      */
+* /*                                                                 */
+* /*02*    ABEND CODES =  none                                       */
+* /*                                                                 */
+* /*03*      REASON CODES = none                                     */
+* /*                                                                 */
+* /*02*    MESSAGES = none                                           */
+* /*                                                                 */
+* /*02*    CHANGE ACTIVITY =                                         */
+* /*       OY17558 -  Created for TSO/E Version 2 Release 1  @YA17558*/
+* /*                                                                 */
+* /*       OY23285 -  Remove the DSECTs.                     @YA23285*/
+* /*                                                                 */
+* /*       OY28977 -  Fixed mapping of MODNAMET block by adding      */
+* /*                  fields MODNAMET_EXECINIT and MODNAMET_EXECTERM */
+* /*                                                         @YA28977*/
+* /*       PG10210 -  Updated for TSO/E 2.2.0 DCR 17         @PG10210*/
+* /*                                                         @PID0115*/
+* /*       PID0115 -  Copyright updates for TSO/E 2.3.0      @PID0115*/
+* /*                                                         @PID0115*/
+* /*       DID0009 -  Updated for TSO/E 2.3.0 DCR 9          @DID0009*/
+* /*                                                         @DID0009*/
+* /*       E23X2BJ -  Updated for TSO/E 2.3.1                @E23X2BJ*/
+* /*                                                         @E23X2BJ*/
+* /*       E24D2D1 -  REXX/APPC Server Facilities Support    @E24D2D1*/
+* /*                                                         @E24D2D1*/
+* /*                                                                 */
+* /* FLAG REASON   RELEASE DATE     ORIGIN                       @P1A*/
+* /* ---- ------   ------- -------- ------                       @P1A*/
+* /* $P1  MG06358  HTE7730 050930   WSY1:  Added the SYSCALL     @P1A*/
+* /*            host environment to the SUBCOM table in support  @P1A*/
+* /*            of USS REXX. Added the EZAFTPKR function package @P1A*/
+* /*            to the system package tables in support of the   @P1A*/
+* /*            FTPAPI function.                                 @P1A*/
+* /*                                                                 */
+* /* $L1  MG10733  HTE7760 071023   WSY1:  Added ROSTORFL and    @L1A*/
+* /*           ROSTORFL_MASK to support the read-only version    @L1A*/
+* /*           of the REXX STORAGE function.                     @L1A*/
+* /*                                                                 */
+* /***END OF SPECIFICATIONS*******************************************/
+PARMBLOCK EQU  *                     /* Set up the PARMBLOCK @PG10210*/
+PARMBLOCK_ID DC CL8'IRXPARMS'        /* Initialize the ID field      */
+PARMBLOCK_VERSION DC CL4'0200'       /* Version field        @PG10210*/
+PARMBLOCK_LANGUAGE DC CL3'ENU'       /* Language US English  @PG10210*/
+RSVD001  DC   CL1' '                 /* Reserved             @PG10210*/
+PARMBLOCK_MODNAMET DC A(MODNAMET)    /* Addr of Module Names Table   */
+PARMBLOCK_SUBCOMTB DC A(SUBCOMTB_HEADER) /* Addr of Subcommand Table */
+*                                    /*      Header                  */
+PARMBLOCK_PACKTB DC A(PACKTB_HEADER) /* Addr of Package Table Header */
+PARMBLOCK_PARSETOK DC CL8'        '  /* Parse Source Token           */
+PARMBLOCK_FLAGS DC X'8000C000'       /* PARMBLOCK flags              */
+*                                    /*  - Indicate TSO environment  */
+*                                    /*  - Issue alternate messages  */
+*                                    /*  - Share subpool storage     */
+*                                    /*  - Load from system  @DID0009*/
+*                                    /*    level EXEC DDNAME @DID0009*/
+*  Byte 1 of PARMBLOCK Flags                                   @PG10210
+* TSOFL           1... ....   Integrate with TSO flag          @PG10210
+*                 .1.. ....   Reserved Flag                    @PG10210
+* CMDSOFL         ..1. ....   Command search order flag        @PG10210
+* FUNCSOFL        ...1 ....   Function/subroutine search order @PG10210
+*                             flag                             @PG10210
+* NOSTKFL         .... 1...   No data stack flag               @PG10210
+* NOREADFL        .... .1..   No read flag                     @PG10210
+* NOWRTFL         .... ..1.   No write flag                    @PG10210
+* NEWSTKFL        .... ...1   New data stack flag              @PG10210
+*  Byte 2 of PARMBLOCK Flags                                   @PG10210
+* USERPKFL        1... ....   User external function package   @PG10210
+*                             flag                             @PG10210
+* LOCPKFL         .1.. ....   Local external function package  @PG10210
+*                             flag                             @PG10210
+* SYSPKFL         ..1. ....   System external function package @PG10210
+*                             flag                             @PG10210
+* NEWSCFL         ...1 ....   New subcommand table flag        @PG10210
+* CLOSEXFL        .... 1...   Close exec data set flag         @PG10210
+* NOESTAE         .... .1..   No recovery ESTAE flag           @PG10210
+* RENTRANT        .... ..1.   Reentrant REXX environment flag  @PG10210
+* NOPMSGS         .... ...1   No primary messages flag         @PG10210
+*  Byte 3 of PARMBLOCK Flags                                   @PG10210
+* ALTMSGS         1... ....   Issue alternate messages flag    @PG10210
+* SPSHARE         .1.. ....   Subpool storage is shared flag   @PG10210
+* STORFL          ..1. ....   STORAGE function flag            @PG10210
+* NOLOADDD        ...1 ....   Do not load from                 @PG10210
+*                             the system-level                 @PG10210
+*                             EXEC DDNAME.                     @PG10210
+* NOMSGWTO        .... 1...   MVS, do not issue error message  @PG10210
+*                             with the WTO service             @PG10210
+* NOMSGIO         .... .1..   MVS, do not issue error message  @PG10210
+*                             with I/O to the OUTDD            @PG10210
+* ROSTORFL        .... ..1.   Read-only STORAGE function. This     @L1A
+*                             flag is meaningful only if STORFL    @L1A
+*                             is OFF so that the STORAGE function  @L1A
+*                             itself is allowed.                   @L1A
+*                 .... ...1   Reserved                             @L1A
+*  Byte 4 of PARMBLOCK Flags                                   @PG10210
+*                 1111 1111   Reserved                         @PG10210
+PARMBLOCK_MASKS DC X'FFFFFFFF'       /* Set all masks                */
+*  Byte 1 of PARMBLOCK Flag Masks                              @PG10210
+* TSOFL_MASK      1... ....   Integrate with TSO flag          @PG10210
+*                 .1.. ....   Reserved Flag                    @PG10210
+* CMDSOFL_MASK    ..1. ....   Command search order flag        @PG10210
+* FUNCSOFL_MASK   ...1 ....   Function/subroutine search order @PG10210
+*                             flag                             @PG10210
+* NOSTKFL_MASK    .... 1...   No data stack flag               @PG10210
+* NOREADFL_MASK   .... .1..   No read flag                     @PG10210
+* NOWRTFL_MASK    .... ..1.   No write flag                    @PG10210
+* NEWSTKFL_MASK   .... ...1   New data stack flag              @PG10210
+*  Byte 2 of PARMBLOCK Flag Masks                              @PG10210
+* USERPKFL_MASK   1... ....   User external function package   @PG10210
+*                             flag                             @PG10210
+* LOCPKFL_MASK    .1.. ....   Local external function package  @PG10210
+*                             flag                             @PG10210
+* SYSPKFL_MASK    ..1. ....   System external function package @PG10210
+*                             flag                             @PG10210
+* NEWSCFL_MASK    ...1 ....   New subcommand table flag        @PG10210
+* CLOSEXFL_MASK   .... 1...   Close exec data set flag         @PG10210
+* NOESTAE_MASK    .... .1..   No recovery ESTAE flag           @PG10210
+* RENTRANT_MASK   .... ..1.   Reentrant REXX environment flag  @PG10210
+* NOPMSGS_MASK    .... ...1   No primary messages flag         @PG10210
+*  Byte 3 of PARMBLOCK Flag Masks                              @PG10210
+* ALTMSGS_MASK    1... ....   Issue alternate messages flag    @PG10210
+* SPSHARE_MASK    .1.. ....   Subpool storage is shared flag   @PG10210
+* STORFL_MASK     ..1. ....   STORAGE function flag            @PG10210
+* NOLOADDD_MASK   ...1 ....   Do not load from                 @PG10210
+*                             the system-level                 @PG10210
+*                             EXEC DDNAME.                     @PG10210
+* NOMSGWTO_MASK   .... 1...   MVS, do not issue error message  @PG10210
+*                             with the WTO service             @PG10210
+* NOMSGIO_MASK    .... .1..   MVS, do not issue error message  @PG10210
+*                             with I/O to the OUTDD            @PG10210
+* ROSTORFL_MASK   .... ..1.   Read-only STORAGE function mask      @L1A
+*                 .... ...1   Reserved                             @L1A
+*  Byte 4 of PARMBLOCK Flag Masks                              @PG10210
+*                 1111 1111   Reserved                         @PG10210
+PARMBLOCK_SUBPOOL DC AL4(78)         /* Storage subpool is 78        */
+PARMBLOCK_ADDRSPN DC CL8'TSO/E   '   /* Address space name is TSO/E  */
+PARMBLOCK_FFFF DC X'FFFFFFFFFFFFFFFF'   /* Set PARMBLOCK end marker  */
+MODNAMET EQU   *            /* Set up the Module Name Table  @PG10210*/
+MODNAMET_DDS EQU *                   /* Specify the DD Names @PG10210*/
+MODNAMET_INDD DC CL8'SYSTSIN '       /* The Input DD                 */
+MODNAMET_OUTDD DC CL8'SYSTSPRT'      /* The Output DD                */
+MODNAMET_LOADDD DC CL8'SYSEXEC '     /* The exec load DD             */
+MODNAMET_ROUTINES EQU *              /* Specify the Routine Names      +
+                                                             @PG10210*/
+*                                    /* (Blank indicates default to  */
+*                                    /*  previous environment's      */
+*                                    /*  settings)           @YA28977*/
+MODNAMET_IOROUT DC CL8'        '     /* The I/O Routine              */
+MODNAMET_EXROUT DC CL8'        '     /* The exec load Routine        */
+MODNAMET_GETFREER DC CL8'        '   /* The GETMAIN/FREEMAIN Routine */
+MODNAMET_EXECINIT DC CL8'IRXEXECI'   /* The EXEC initialization rtn. */
+*                                    /*                      @YA28977*/
+MODNAMET_ATTNROUT DC CL8'        '   /* The Attention Routine        */
+MODNAMET_STACKRT DC CL8'        '    /* The Data Stack Routine       */
+MODNAMET_IRXEXECX DC CL8'IRXEXECU'   /* The IRXEXEC exit Routine     */
+MODNAMET_IDROUT DC CL8'        '     /* The userid Routine           */
+MODNAMET_MSGIDRT DC CL8'        '    /* The message id Routine       */
+MODNAMET_EXECTERM DC CL8'IRXEXECT'   /* The TERMINATION rtn. @YA28977*/
+MODNAMET_FFFF DC X'FFFFFFFFFFFFFFFF' /* The MODNAMET end marker      */
+SUBCOMTB_HEADER EQU *                /* Set up the Subcommand Table    +
+                                                             @PG10210*/
+SUBCOMTB_FIRST DC A(SUBCOMTB_ENTRIES) /* Address of SUBCOMTB entries */
+SUBCOMTB_TOTAL DC F'13'              /* Total entries            @P1C*/
+SUBCOMTB_USED DC F'13'               /* Entries used             @P1C*/
+SUBCOMTB_LENGTH DC F'32'             /* Length of each entry         */
+SUBCOMTB_INITIAL DC CL8'TSO     '    /* Initial environment is TSO   */
+RSVD007  DS    CL8                   /* Reserved                     */
+SUBCOMTB_FFFF DC X'FFFFFFFFFFFFFFFF' /* Set Header end marker        */
+SUBCOMTB_ENTRIES EQU *               /* SUBCOMTB Entries     @PG10210*/
+SUBCOMTB_ENTRY_MVS EQU *             /* Set up 1st SUBCOMTB entry      +
+                                                             @PG10210*/
+SUBCOMTB_NAME_MVS DC CL8'MVS     '   /* MVS Subcommand environment   */
+SUBCOMTB_ROUTINE_MVS DC CL8'IRXSTAM '   /* Routine handling the MVS  */
+*                                       /*   subcommand environment  */
+*                                       /*   is IRXSTAM              */
+SUBCOMTB_TOKEN_MVS DC CL16'                '  /* Blank token         */
+SUBCOMTB_NEXT_MVS DS 0C              /* Point to the next entry      */
+SUBCOMTB_ENTRY_TSO EQU *             /* Set up 2nd SUBCOMTB entry      +
+                                                             @PG10210*/
+SUBCOMTB_NAME_TSO DC CL8'TSO     '   /* TSO Subcommand environment   */
+SUBCOMTB_ROUTINE_TSO DC CL8'IRXSTAM '         /* Routine is IRXSTAM  */
+SUBCOMTB_TOKEN_TSO DC CL16'                '  /* Blank token         */
+SUBCOMTB_NEXT_TSO DS 0C                       /* Point to next entry */
+SUBCOMTB_ENTRY_LINK EQU *            /* Set up 3rd SUBCOMTB entry      +
+                                                             @PG10210*/
+SUBCOMTB_NAME_LINK DC CL8'LINK    '  /* LINK Subcommand environment  */
+SUBCOMTB_ROUTINE_LINK DC CL8'IRXSTAM '        /* Routine is IRXSTAM  */
+SUBCOMTB_TOKEN_LINK DC CL16'                ' /* Blank token         */
+SUBCOMTB_NEXT_LINK DS 0C                      /* Point to next entry */
+SUBCOMTB_ENTRY_ATTACH EQU *          /* Set up 4th SUBCOMTB entry      +
+                                                             @PG10210*/
+SUBCOMTB_NAME_ATTACH DC CL8'ATTACH  ' /*ATTACH Subcommand environment*/
+SUBCOMTB_ROUTINE_ATTACH DC CL8'IRXSTAM '      /* Routine is IRXSTAM  */
+SUBCOMTB_TOKEN_ATTACH DC CL16'                '  /* Blank token      */
+SUBCOMTB_NEXT_ATTACH DS 0C                    /* Point to next entry */
+SUBCOMTB_ENTRY_CONSOLE EQU *    /* Set up 5th SUBCOMTB entry @PG10210*/
+SUBCOMTB_NAME_CONSOLE DC CL8'CONSOLE ' /* Name is CONSOLE    @PG10210*/
+SUBCOMTB_ROUTINE_CONSOLE DC CL8'IRXSTAM ' /* Routine is IRXSTAM        +
+                                                             @PG10210*/
+SUBCOMTB_TOKEN_CONSOLE DC CL16'                '
+SUBCOMTB_NEXT_CONSOLE DS 0C
+*                                                            @PID0115
+SUBCOMTB_ENTRY_CPICOMM EQU *    /* Set up 6th SUBCOMTB entry @PID0115*/
+SUBCOMTB_NAME_CPICOMM DC CL8'CPICOMM ' /* Name is CPICOMM    @PID0115*/
+SUBCOMTB_ROUTINE_CPICOMM DC CL8'IRXAPPC ' /* Routine is IRXAPPC        +
+                                                             @PID0115*/
+SUBCOMTB_TOKEN_CPICOMM DC CL16'                '           /*@PID0115*/
+SUBCOMTB_NEXT_CPICOMM DS 0C
+*                                                            @PID0115
+SUBCOMTB_ENTRY_LU62    EQU *    /* Set up 7th SUBCOMTB entry @PID0115*/
+SUBCOMTB_NAME_LU62    DC CL8'LU62    ' /* Name is LU62       @PID0115*/
+SUBCOMTB_ROUTINE_LU62    DC CL8'IRXAPPC ' /* Routine is IRXAPPC        +
+                                                             @PID0115*/
+SUBCOMTB_TOKEN_LU62    DC CL16'                '           /*@PID0115*/
+SUBCOMTB_NEXT_LU62    DS 0C
+SUBCOMTB_ENTRY_LINKMVS EQU *    /* Set up 8th SUBCOMTB entry @E23X2BJ*/
+SUBCOMTB_NAME_LINKMVS DC CL8'LINKMVS ' /* Name is LINKMVS    @E23X2BJ*/
+SUBCOMTB_ROUTINE_LINKMVS DC CL8'IRXSTAMP' /* Routine is IRXSTAMP       +
+                                                             @E23X2BJ*/
+SUBCOMTB_TOKEN_LINKMVS DC CL16'                '           /*@E23X2BJ*/
+SUBCOMTB_NEXT_LINKMVS DS 0C
+SUBCOMTB_ENTRY_LINKPGM EQU *    /* Set up 9th SUBCOMTB entry @E23X2BJ*/
+SUBCOMTB_NAME_LINKPGM DC CL8'LINKPGM ' /* Name is LINKPGM    @E23X2BJ*/
+SUBCOMTB_ROUTINE_LINKPGM DC CL8'IRXSTAMP' /* Routine is IRXSTAMP       +
+                                                             @E23X2BJ*/
+SUBCOMTB_TOKEN_LINKPGM DC CL16'                '           /*@E23X2BJ*/
+SUBCOMTB_NEXT_LINKPGM DS 0C
+SUBCOMTB_ENTRY_ATTCHMVS EQU * /* Set up 10th SUBCOMTB entry @E23X2BJ*/
+SUBCOMTB_NAME_ATTCHMVS DC CL8'ATTCHMVS' /* Name is ATTCHMVS @E23X2BJ*/
+SUBCOMTB_ROUTINE_ATTCHMVS DC CL8'IRXSTAMP' /* Routine is IRXSTAMP      +
+                                                             @E23X2BJ*/
+SUBCOMTB_TOKEN_ATTCHMVS DC CL16'                '          /*@E23X2BJ*/
+SUBCOMTB_NEXT_ATTCHMVS DS 0C
+SUBCOMTB_ENTRY_ATTCHPGM EQU * /* Set up 11th SUBCOMTB entry @E23X2BJ*/
+SUBCOMTB_NAME_ATTCHPGM DC CL8'ATTCHPGM' /* Name is ATTCHPGM @E23X2BJ*/
+SUBCOMTB_ROUTINE_ATTCHPGM DC CL8'IRXSTAMP' /* Routine is IRXSTAMP      +
+                                                             @E23X2BJ*/
+SUBCOMTB_TOKEN_ATTCHPGM DC CL16'                '          /*@E23X2BJ*/
+SUBCOMTB_NEXT_ATTCHPGM DS 0C
+SUBCOMTB_ENTRY_APPCMVS EQU * /* Set up 12th SUBCOMTB entry @E24D2D1*/
+SUBCOMTB_NAME_APPCMVS DC CL8'APPCMVS ' /* Name is APPCMVS @E24D2D1*/
+SUBCOMTB_ROUTINE_APPCMVS DC CL8'IRXAPPC ' /* Routine is IRXAPPC        +
+                                                             @E24D2D1*/
+SUBCOMTB_TOKEN_APPCMVS DC CL16'                '           /*@E24D2D1*/
+SUBCOMTB_NEXT_APPCMVS DS 0C
+SUBCOMTB_ENTRY_SYSCALL EQU *      /* Set up 13th SUBCOMTB entry  @P1A*/
+SUBCOMTB_NAME_SYSCALL DC CL8'SYSCALL ' /* Name is SYSCALL        @P1A*/
+SUBCOMTB_ROUTINE_SYSCALL DC CL8'BPXWREXX' /* Routine is BPXWREXX       +
+                                                                 @P1A*/
+SUBCOMTB_TOKEN_SYSCALL DC CL16'                '           /*    @P1A*/
+SUBCOMTB_NEXT_SYSCALL DS 0C                                /*    @P1A*/
+PACKTB_HEADER EQU *                  /* Set up the PACKTB Header       +
+                                                             @PG10210*/
+PACKTB_USER_FIRST DC A(USER_PACKTB_ENTRIES)   /* Address of the first*/
+*                                             /*   User entry        */
+PACKTB_USER_TOTAL DC F'1'                     /* Total number of     */
+*                                             /*   User entries      */
+PACKTB_USER_USED DC F'1'                      /* Number of User      */
+*                                             /*   entries in use    */
+PACKTB_LOCAL_FIRST DC A(LOCAL_PACKTB_ENTRIES) /* Address of the first*/
+*                                             /*   Local entry       */
+PACKTB_LOCAL_TOTAL DC F'1'                    /* Total number of     */
+*                                             /*   Local entries     */
+PACKTB_LOCAL_USED DC F'1'                     /* Number of Local     */
+*                                             /*   entries in use    */
+PACKTB_SYSTEM_FIRST DC A(PACKTB_ENTRIES)      /* Address of the first*/
+*                                             /*   System entry      */
+PACKTB_SYSTEM_TOTAL DC F'3'                   /* Total number of @P1C*/
+*                                             /*  System entries @P1C*/
+PACKTB_SYSTEM_USED DC F'3'                    /*Number of System @P1C*/
+*                                             /*  entries in use @P1C*/
+PACKTB_LENGTH DC F'8'                /* Length of each PACKTB entry  */
+PACKTB_FFFF DC X'FFFFFFFFFFFFFFFF'   /* Set the PACKTB end marker    */
+PACKTB_ENTRIES EQU *                 /* System Package Table entries   +
+                                                             @PG10210*/
+PACKTB_ENTRY_MVS EQU *               /* The MVS PACKTB entry @PG10210*/
+PACKTB_NAME_MVS DC CL8'IRXEFMVS'     /* Set the function package name*/
+PACKTB_NEXT_MVS DS 0C                /* Point to the next entry      */
+PACKTB_ENTRY_TSO EQU *               /* The TSO PACKTB entry @PG10210*/
+PACKTB_NAME_TSO DC CL8'IRXEFPCK'     /* Set the function package name*/
+PACKTB_NEXT_TSO DS 0C                /* Point to the next entry      */
+PACKTB_ENTRY_FTP EQU *               /* The EZAFTPKR PACKTB entry@P1A*/
+PACKTB_NAME_FTP DC CL8'EZAFTPKR'     /* Set the function package name  +
+                                        for the FTP API          @P1A*/
+PACKTB_NEXT_FTP DS 0C                /* Point to the next entry  @P1A*/
+LOCAL_PACKTB_ENTRIES EQU *           /*                      @PG10210*/
+PACKTB_ENTRY_LOCAL EQU *             /* Local Package Table entry      +
+                                                             @PG10210*/
+PACKTB_NAME_LOCAL DC CL8'IRXFLOC'    /* Set the function package name*/
+PACKTB_NEXT_LOCAL DS 0C              /* Point to the next entry      */
+USER_PACKTB_ENTRIES EQU *            /*                      @PG10210*/
+PACKTB_ENTRY_USER EQU *              /* User Package Table entry       +
+                                                             @PG10210*/
+PACKTB_NAME_USER DC CL8'IRXFUSER'    /* Set the function package name*/
+PACKTB_NEXT_USER DS 0C               /* Point to the next entry      */
+  DC   C'PATCH AREA'
+  DS   6F                 Patch area
+         END   IRXTSPRM
+//LINK   EXEC PGM=IEWL,
+//         PARM='MAP,LIST,XREF,NCAL,NORENT,AMODE=31,RMODE=ANY',
+//         REGION=800K,COND=(5,LT)
+//SYSPRINT DD SYSOUT=*
+//SYSLIN   DD DISP=(OLD,DELETE),DSN=&LOADSET
+//SYSLMOD  DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.LOAD(IRXTSPRM) <§
+//SYSUT1   DD UNIT=SYSDA,SPACE=(CYL,(3,2))

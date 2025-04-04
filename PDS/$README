@@ -1,0 +1,152 @@
+TSO/E REXX Preprocessor
+-----------------------
+
+The package contains a working example to integrate a REXX-Preprocessor
+seamless into a TSO/REXX Environment.
+
+* Why a REXX-Preprocessor
+
+The REXX-Standard does not define a concept how to deal with global variables.
+External REXX-functions (or procedures) do not inherit access to a parent
+environment (read or update). Retrieve and return of contents is only defined
+via passing arguments and passing a value at return. But especially stem
+variables are not suitable for this approach.  The defined stack architecture,
+which may overcome limitations in this area is not well implemented in non
+z-Architecures and is not widely used.
+
+There are possibilites to overcome this shortage:
+
+*First*: Define your own Global Area where you exchange contents. For MVS/TSO
+some packages found on CBTTAPE which deal with this approach. But there is extra
+rexx code necessary to prepare and to retrieve variables and stems from the
+"external call" (note: in z/VM CMS PIPELINES provide access to different
+variable pools. J.P. Hartmann created also an MVS/TSO port of his PIEPLINES,
+but this port never gained comparable commonnes as in z/VM).
+
+*Second*: Avoid external functions. Internal subroutines may share the variable
+pool of the caller. But there is a big disadvantage. The code of the subroutine
+needs to be in the same file, which makes maintenance of common code very
+cumbersome.
+
+For non z-Architectures some implementations exist. Namely BREXX (V. Vlachoudis)
+implemented this concept. Before an exec is interpreted, files are included,
+containing internal subroutine code. With this the code of the internal
+subroutine is unique in a separate file and may be shared among different execs,
+thus eases maintenance of this procedures.
+
+* TSO/REXX Implementation of a REXX-Preprocessor
+
+TSO related, REXX Procedures are mostly called implicit in a TSO-Environment.
+The provided TSO-Command processor is IRXEXEC. An idea may be to include IRXEXEC
+in a wrapper program. This is possible but has some negative side effects with
+the handling of the internal stuctures of the MVS-REXX environment and MVS
+system maintenance.
+
+The correct way is to use the provided exit points, as documented.
+
+- IRXTSPRM: IRXEXECU IRXEXECT IRXEXECI
+   -- register here IRXINIT-Exit (intialize a new EXECBLK)
+   -- register here IRXEXEC-Exit (modify Contents before IRXEXEC is called)
+   -- register here IRXTERM-Exit (cleanup user data areas used for modification)
+
+-- IRXEXECI
+   --- get Storage for modified EXEC Contents
+   --- get Storage for (necessary) modified table of
+
+-- IRXEXECU
+   --- get Storage for modified EXEC Contents
+   --- get Storage for (necessary) modified table of
+       exec row addresses (IRXINSTB INStorageBlock).
+   --- IKJFTSR: call the REXX-Preprocessor via TSO (DCJRXPP).
+
+-- IRXEXECT
+   --- cleanup.
+
+TSO/REXX uses subpool 78. Both IRXEXECI and IRXEXECU are needed for
+Storage-Mgmt.
+
+-- DCJRXPP
+
+TSO Command Processor DCJRXPP (written & compiled with JCC) is a sample user
+program which handles the contents of the IRXINSTB, modifying and adding
+sourcelines to the loaded (but before exexuted) exec. Similar to preprocessors
+in other programming languages I've implemented two directives:
+
+--- #MACRO
+  Include an external member on the DD SYSEXEC concatenation. DD RXSYSLIB is
+  allowed as an alternative to keep macros and syslibs away from normal rexx
+  code.
+
+  AT THE CURRENT LINE:  Insertion of contents of the member at this sourceline
+   ** NO SYNTAX CHECK **.  You are responsible that syntax and logic of the main
+  exec is maintaned after the insertion is done.
+
+  Arguments for the macro will be resolved. Starting in the #MACRO line after
+  the first semicolon the values for POSITIONAL parameters, delimited each with
+  semicolon too, will be resolved in order of their specification.  The
+  positional parameter identifier in the macro are specified as &P0 to &Pn.
+
+--- #SYSLIB
+  Append an external member on the DD SYSEXEC concatenation. DD RXSYSLIB is
+  allowed as an alternative to keep macros and syslibs away from normal
+  rexx-code.
+
+  AT THE END of the orignal code: In my experience this is the more important
+  directive, as it emulates a syslib environment. Only one argument is honored
+  (membername). You are responsible for the results the REXX-Interpreter
+  produces.
+
+There is no recursion provided in the DCJRXPP program. Only the first level will
+be expanded. As a prerequisite the keyword PREPROCESS needs to be specified in
+the first line of the exec.
+
+* Hints, Warnings & Caveats
+
+ - as mentioned above PREROCESS keyword.
+
+ - when specified #SYSLIB, check EXIT or RETURN before appended syslib code, to
+   prevent interpretation run into this appended lines.
+
+ - JCC and standard streams. JCC supports DD STDOUT and DD STDERR. DCJRXPP uses
+   STDERR to print some Informations. In a last action DCJRXPP sends the
+   complete expanded exec to DD STDOUT, which could be executed without
+   modification. This is your door for trace & debug. There is no need to
+   allocate both DDnames in normal situations. In foreground a TSO ALLOC
+   DD(STDERR) DA(*) will do the job when needed, vice versa TSO FREE DD(STDERR)
+   quits the output.
+
+ - Destroying your TSO/REXX Environment (and ISPF) is a bad thing. If you lock
+   yourself and perhaps others out of the system, be prepared to have a
+   backdoor.
+
+   -- pack your code into a STEPLIB for one of your LOGON Procedures and have a
+      tested emergency LOGON Procedure in place. The named exits need to be in
+      an APF authorized (STEPLIB) library, but AC bit off.
+
+      If you are able to delete the faulty exits from such a STEPLIB the
+      recovery is complete. The default IRX-Enviroment in the LPA will be
+      active again.
+
+   -- same things apply to the preprocessor. This is a simple call out of a
+      system exit. Bad user code is able to destroy the REXX enviroment.
+      Keep the module (and source) saved, to maintain your system integrity.
+
+   -- the things turn out to be much easier to test and control in a job-based
+      environment. Here is the level of potential impact far better predictable
+      and the benefits far outweigh possible risks.
+
+* Conclusion & Note of Thanks
+
+ Especially I want to thank Jason Winter for his great C compiler. Anthony Rudd
+ for his excellent book about TSO/REXX (TSO/REXX Practical Usage). There are
+ some other packages dealing with ways to enhance the usability of TSO/E REXX
+ environment. A incomplete list of packages dealing with global variables
+ contains CBT791, CBT411 and CBT413 and all the other packages dealing with
+ generating and providing REXX Function pacs.
+
+* COPYRIGHT Edgar Hofmann 2023
+
+  The current GNU Public Licence applies to this work. If there any license
+  questions about this work, please contact the author.
+
+                                  -- ** --

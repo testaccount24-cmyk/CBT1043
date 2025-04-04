@@ -1,0 +1,10 @@
+- TSO RECEIVE the Member LOADXMI (to a LOAD PDS)
+
+- have a Backup Logon-Procedure for Recovery Situations prepared.
+
+- append / copy received contents to your (Test-) STEPLIB. STEPLIB needs to be
+  APF authorized.
+
+- copy RXUTEST into your SYSEXEC concatenation.
+
+- test it with TESTRXU$

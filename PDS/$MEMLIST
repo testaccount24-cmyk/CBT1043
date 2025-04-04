@@ -1,0 +1,18 @@
+@README    DOC       some documentation how it works
+DCHIRXE@   ASM       JCL with ASM SYSIN source for IRXEXECU
+DCHIRXI@   ASM       JCL with ASM SYSIN source for IRXEXECI
+DCHIRXP@   ASM       JCL with ASM SYSIN source for IRXEXECP (IRXTSPRM)
+DCHIRXT@   ASM       JCL with ASM SYSIN source for IRXEXECT
+DCJDDME    C         A sample C source to check mem exist. JCC required.
+DCJRXPP    C         A sample C PREPROCESSOR. you need JCC to compile
+DCJRXPP$   JCL       JCL proc to compile DCJRXPP
+DCJDDME$   JCLPROC   JCL proc to compile DCJDDME
+TESTRXU$   JCL       JCL to test (IVP) IRXEXECU
+JCCXCL     JCLPROC   MY JCL proc to compile a JCC C source
+DCXVMON    REXX      a small exec to give virt stor usage. needs MXI installed
+RXUMAYFO   REXX      rename to ohter name to test external function not found
+RXUSUBEX   REXX      Test external REXX subcommand / function
+RXUTEST    REXX      Main REXX exec
+RXUSLIB    REXXLIB   Sample Syslib to include in an exec via #SYSLIB
+RXUMAC00   REXXMAC   Sample Macro  to include in an exec via #MACRRO
+#LOADXMI   XMIT      XMITted Load Lib of all compiles above

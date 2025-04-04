@@ -1,0 +1,109 @@
+//DCHIRXT@ JOB SDBDC,'IBM-TEDB',NOTIFY=&SYSUID,CLASS=A,                 JOB11605
+//         MSGLEVEL=(1,1)
+//*+-----------------------------------------------------<BOD>+
+//*|SYS: SINM   LLQ: SOURCE                                   |
+//*|VER: 1.0       (C): SYSPRG1                               |
+//*|----------------------------------------------------------|
+//*|SYSPRG1   23/05/23     NEW                                |
+//*+-----------------------------------------------------<EOD>+
+//ASMACLG EXEC ASMACL
+//C.SYSIN DD *
+IRXEXECT CSECT
+IRXEXECT RMODE 31
+IRXEXECT AMODE 31
+         YREGS
+*--------------------------------------------------------------------*
+* Standard starting (housholding) sequence
+*--------------------------------------------------------------------*
+         SAVE  (14,12)
+         BASR  R11,0                 establish ...
+         USING *,11                 ...addressability
+         ST    R13,DCSAVE+4          chain...
+         LR    R12,R13                ...the...
+         LA    R13,DCSAVE               ...save...
+         ST    R13,8(12)                   ...areas
+*--------------------------------------------------------------------*
+MAIN#    DS    0H
+*
+         ST    R0,DCR0               explizit save    R0, R1
+         ST    R1,DCR1               explizit save    R0, R1
+*
+         L     R3,DCR0
+         L     R1,DCR1
+         L     R4,20(R3)
+         LTR   R4,R4
+         BZ    #NOTERM
+*        B     #EXIT
+*-RELEASE -----------------------------------------------------------*
+         L     R3,DCR0
+         L     R1,DCR1
+         L     R4,20(R3)
+         LR    R10,R4                      <<<< keep it R11
+
+*        L     R6,0(R4)
+*        L     R5,4(R4)
+*        STORAGE RELEASE,LENGTH=(5),ADDR=(6)
+*        L     R6,8(R4)
+*        L     R5,12(R4)
+*        STORAGE RELEASE,LENGTH=(5),ADDR=(6)
+
+         L     R4,20(R3)
+         LA    R5,256
+         MVI   0(R4),X'00'                              << nullify
+         MVC   1(256-1,R4),0(R4)
+         STORAGE RELEASE,LENGTH=(5),ADDR=(4),COND=YES
+         LA    R6,0                                     << nullify
+         ST    R6,20(R3)
+*
+         ST    R10,HEXBIN
+*        MVC   HEXBIN,20(R3)
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+*        MVC   #WTO00+21(8),HEXDIS
+*WTO00   WTO   '+++ STORTERM xxxxxxxx +++',ROUTCDE=11
+*        LA    R9,0
+*        ST    R9,20(R3)
+         B     #DONE
+*
+#NOTERM  DS    0H
+         MVC   HEXBIN,20(R3)
+         UNPK  HEXDIS(L'HEXDIS+1),HEXBIN(L'HEXBIN+1)
+         TR    HEXDIS,HEXTRT
+*        MVC   #WTO10+21(8),HEXDIS
+*WTO10   WTO   '+++ STORNONE xxxxxxxx +++',ROUTCDE=11
+*
+
+#DONE    DS    0H
+*-HELLO -------------------------------------------------------------*
+*--------------------------------------------------------------------*
+* Standard exiting sequence, pass on REXX retcode
+*--------------------------------------------------------------------*
+#EXIT    DS    0H
+*
+         L     R0,DCR0                explizit restore R0, R1
+         L     R1,DCR1
+         L     R13,DCSAVE+4
+         L     R15,DCRETC
+         RETURN (14,12),RC=(15)
+*--------------------------------------------------------------------*
+* Data areas
+*--------------------------------------------------------------------*
+DCRETC   DC    F'0'                 RETURNCODE
+DCSAVE   DC    18F'0'               SAVE AREA
+DCR0     DC    F'0'
+DCR1     DC    F'0'
+*
+MSGLT    DC    AL2(L'MSGT)
+MSGT     DC    CL20'+++  IN IRXEXECT  +++'
+*
+HEXTRT   EQU   *-X'F0'             16 Byte Translate Table.
+*                   0 1 2 3 4 5 6 7 8 9 A B C D E F
+         DC    XL16'F0F1F2F3F4F5F6F7F8F9C1C2C3C4C5C6'  F0 - FF
+HEXBIN   DS    XL4                 4 Byte Binary Field.
+         DS    X                   1 Byte Pad for UNPK.
+HEXDIS   DS    CL8                 8 Byte Displayable Hex Field.
+         DS    C                   1 Byte Pad for UNPK.
+*
+         LTORG
+         END
+//L.SYSLMOD DD DISP=SHR,DSN=SDBDC.CBTXXX.FILE1043.LOAD(IRXEXECT)

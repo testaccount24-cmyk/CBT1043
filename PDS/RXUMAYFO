@@ -1,0 +1,4 @@
+/* rexx */
+  say arg(1)
+  say arg(2)
+return 0
